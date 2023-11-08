@@ -1,12 +1,12 @@
-use std::{borrow::Cow, cell::RefCell, ops::Deref};
+// use std::{borrow::Cow, cell::RefCell, ops::Deref};
 
 use once_cell::sync::Lazy;
-use word::Word;
 use words::Words;
-mod word;
-mod words;
+pub mod trie;
+pub mod word;
+pub mod words;
 
-const NEW_LINE: &u8 = &b'\n';
+// const NEW_LINE: &u8 = &b'\n';
 
 const FILE: &[u8; 3864811] = include_bytes!("../data/words_alpha.txt");
 
