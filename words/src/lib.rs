@@ -10,7 +10,7 @@ pub static WORDS: Lazy<Vec<&[u8]>> =
 
 pub static TRIE: Lazy<Trie> = Lazy::new(|| {
     let mut trie = Trie::new();
-    for &word in WORDS.iter() {
+    for word in FILE.split(|&byte| byte == b'\n') {
         trie.append_bytes(word);
     }
     trie
