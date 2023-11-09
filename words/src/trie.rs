@@ -1,79 +1,17 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Trie {
-    is_word: bool,
-    children: HashMap<u8, Trie>,
+    pub is_word: bool,
+    pub children: HashMap<u8, Trie>,
 }
 
 impl Trie {
     pub fn new() -> Self {
         Trie {
             is_word: false,
-            children: HashMap::with_capacity(26),
+            children: HashMap::new(),
         }
-    }
-
-    pub fn append(&mut self, value: &str) {
-        if value.is_empty() {
-            return;
-        }
-        self.append_bytes(VecDeque::from(value.as_bytes().to_owned()));
-    }
-
-    fn append_bytes(&mut self, mut bytes: VecDeque<u8>) {
-        if let Some(letter) = bytes.pop_front() {
-            let node = if let Some(child) = self.children.get_mut(&letter) {
-                child
-            } else {
-                self.children.insert(letter, Trie::new());
-                self.children.get_mut(&letter).unwrap()
-            };
-            node.append_bytes(bytes);
-        } else {
-            self.is_word = true;
-        }
-    }
-
-    pub fn search(&self, value: &str) -> bool {
-        let mut search_bytes = VecDeque::from(value.as_bytes().to_owned());
-
-        if search_bytes.is_empty() {
-            return false;
-        }
-
-        let mut nodes_vec = vec![self];
-        while let Some(letter) = search_bytes.pop_front() {
-            let mut next_nodes = vec![];
-            if letter == b'.' {
-                while let Some(node) = nodes_vec.pop() {
-                    let children = node.children.values();
-                    if search_bytes.is_empty() && !node.children.is_empty() {
-                        for child in children {
-                            if child.is_word {
-                                return child.is_word;
-                            }
-                        }
-                        continue;
-                    }
-                    next_nodes.append(&mut children.collect());
-                }
-            } else {
-                while let Some(node) = nodes_vec.pop() {
-                    if let Some(child) = node.children.get(&letter) {
-                        if search_bytes.is_empty() {
-                            if child.is_word {
-                                return true;
-                            }
-                            continue;
-                        }
-                        next_nodes.push(child);
-                    }
-                }
-            }
-            nodes_vec = next_nodes;
-        }
-        false
     }
 }
 
@@ -83,34 +21,78 @@ impl Default for Trie {
     }
 }
 
-#[derive(Debug)]
-pub struct WordDictionary {
-    words: Trie,
+impl Trie {
+    pub fn append(&mut self, value: &str) {
+        if value.is_empty() {
+            return;
+        }
+        self.append_bytes(value.as_bytes());
+    }
+
+    pub fn append_bytes(&mut self, bytes: &[u8]) {
+        if let Some(letter) = bytes.first() {
+            let node = self.children.entry(*letter).or_default();
+            node.append_bytes(&bytes[1..]);
+        } else {
+            self.is_word = true;
+        }
+    }
 }
 
-/**
-* `&self` means the method takes an immutable reference.
-* If you need a mutable reference, change it to `&mut self` instead.
-*/
-impl WordDictionary {
-    pub fn new() -> Self {
-        WordDictionary {
-            words: Trie::default(),
+impl Trie {
+    pub fn follow(&self, bytes: &[u8]) -> Option<&Trie> {
+        if let Some(byte) = bytes.first() {
+            if let Some(node) = self.children.get(byte) {
+                node.follow(&bytes[1..])
+            } else {
+                None
+            }
+        } else {
+            Some(self)
         }
     }
 
-    pub fn add_word(&mut self, word: &str) {
-        self.words.append(word)
-    }
-
-    pub fn search(&self, word: &str) -> bool {
-        self.words.search(word)
+    pub fn dfs(&self, words: &mut Vec<String>, path: &[u8]) {
+        if self.is_word {
+            words.push(String::from_utf8_lossy(path).to_string());
+        }
+        for (letter, child) in &self.children {
+            let mut new_path = path.to_vec();
+            new_path.push(*letter);
+            child.dfs(words, &new_path);
+        }
     }
 }
 
-impl Default for WordDictionary {
-    fn default() -> Self {
-        WordDictionary::new()
+impl Trie {
+    pub fn search(&self, value: &str) -> bool {
+        self.search_bytes(value.as_bytes())
+    }
+
+    pub fn search_bytes(&self, bytes: &[u8]) -> bool {
+        if bytes.is_empty() {
+            return self.is_word;
+        }
+        if let Some(letter) = bytes.first() {
+            if letter == &b'.' {
+                return self.children.values().any(|c| c.search_bytes(&bytes[1..]));
+            }
+            if let Some(child) = self.children.get(letter) {
+                return child.search_bytes(&bytes[1..]);
+            }
+        }
+        false
+    }
+}
+
+impl Trie {
+    pub fn starts_with(&self, value: &str) -> Vec<String> {
+        let bytes = value.as_bytes();
+        let mut words = vec![];
+        if let Some(root) = self.follow(bytes) {
+            root.dfs(&mut words, bytes)
+        }
+        words
     }
 }
 
@@ -120,61 +102,64 @@ mod tests {
 
     #[test]
     fn basic_case() {
-        let mut wd = WordDictionary::new();
-        wd.add_word("ba");
-        wd.add_word("bad");
-        wd.add_word("bac");
-        wd.add_word("dad");
-        wd.add_word("mad");
+        let mut tr = Trie::default();
+        tr.append("ba");
+        tr.append("bad");
+        tr.append("bac");
+        tr.append("dad");
+        tr.append("mad");
 
-        println!("{:#?}", wd);
+        assert!(!tr.search("b"));
+        assert!(tr.search("ba"));
+        assert!(tr.search("bad"));
+        assert!(tr.search("mad"));
+        assert!(!tr.search("bab"));
+        assert!(!tr.search("pad"));
 
-        assert!(!wd.search("pad"));
-        assert!(wd.search("bad"));
-        assert!(wd.search(".ad"));
-        assert!(wd.search("b.."));
+        tr.append("bab");
+        assert!(tr.search("bab"));
     }
 
     #[test]
-    fn failed_case_1() {
-        let mut wd = WordDictionary::new();
-        wd.add_word("a");
-        wd.add_word("a");
+    fn case_with_dot() {
+        let mut tr = Trie::default();
+        tr.append("ba");
+        tr.append("bad");
 
-        println!("{:#?}", wd);
-
-        assert!(wd.search("."));
-        assert!(wd.search("a"));
-        assert!(!wd.search("aa"));
-        assert!(wd.search("a"));
-        assert!(!wd.search(".a"));
-        assert!(!wd.search("a."));
-        assert!(!wd.search(".a."));
+        assert!(!tr.search(".b"));
+        assert!(!tr.search(".b."));
+        assert!(!tr.search("b"));
+        assert!(tr.search("bad"));
+        assert!(tr.search("b.d"));
+        assert!(tr.search(".a."));
+        assert!(tr.search("b.."));
+        assert!(tr.search("..d"));
     }
 
     #[test]
-    fn failed_case_2() {
-        // ["WordDictionary","addWord","addWord","addWord","addWord","search","search","addWord","search","search","search","search","search","search"]
-        // [[],              ["at"],   ["and"],  ["an"],   ["add"],  ["a"],   [".at"], ["bat"],  [".at"], ["an."], ["a.d."],["b."],  ["a.d"], ["."]]
-        // [null,            null,     null,     null,     null,     false,   false,   null,     true,    true,    false,   false,   true,    false]
-        let mut wd = WordDictionary::new();
-        wd.add_word("at");
-        wd.add_word("and");
-        wd.add_word("an");
-        wd.add_word("add");
+    fn prefix_search() {
+        let mut tr = Trie::default();
+        tr.append("ba");
+        tr.append("bad");
+        tr.append("bcd");
 
-        println!("{:#?}", wd);
-
-        assert!(!wd.search("a"));
-        assert!(!wd.search(".at"));
-
-        wd.add_word("bat");
-
-        assert!(wd.search(".at"));
-        assert!(wd.search("an."));
-        assert!(!wd.search("a.d."));
-        assert!(!wd.search("b."));
-        assert!(wd.search("a.d"));
-        assert!(!wd.search("."));
+        assert_eq!(
+            {
+                let mut res = tr.starts_with("b");
+                res.sort();
+                res
+            },
+            vec!["ba", "bad", "bcd"]
+        );
+        assert_eq!(
+            {
+                let mut res = tr.starts_with("ba");
+                res.sort();
+                res
+            },
+            vec!["ba", "bad"]
+        );
+        assert_eq!(tr.starts_with("c"), Vec::<String>::new());
+        assert_eq!(tr.starts_with("abc"), Vec::<String>::new());
     }
 }

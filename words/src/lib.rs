@@ -1,24 +1,20 @@
-// use std::{borrow::Cow, cell::RefCell, ops::Deref};
-
 use once_cell::sync::Lazy;
-use words::Words;
+use trie::Trie;
+pub mod games;
 pub mod trie;
-pub mod word;
-pub mod words;
-
-// const NEW_LINE: &u8 = &b'\n';
 
 const FILE: &[u8; 3864811] = include_bytes!("../data/words_alpha.txt");
 
-// const WORDS_DICT: &[Cow<'static, str>; 370105] = {
-//     let words: Vec<Cow<'static, str>> = FILE
-//         .split(|v| v == NEW_LINE)
-//         .map(|w| String::from_utf8_lossy(w))
-//         .collect();
-//     &words[..]
-// };
+pub static WORDS: Lazy<Vec<&[u8]>> =
+    Lazy::new(|| FILE.split(|&byte| byte == b'\n').collect::<Vec<&[u8]>>());
 
-pub static WORDS: Lazy<Words> = Lazy::new(|| Words::load_words_dict(FILE));
+pub static TRIE: Lazy<Trie> = Lazy::new(|| {
+    let mut trie = Trie::new();
+    for &word in WORDS.iter() {
+        trie.append_bytes(word);
+    }
+    trie
+});
 
 #[cfg(test)]
 mod tests {
@@ -26,7 +22,17 @@ mod tests {
 
     #[test]
     fn it_loads_words() {
-        assert_eq!(WORDS.get(0), Some(&"a".into()));
-        assert!(WORDS.len() > 350_000);
+        assert_eq!(WORDS.get(0), Some(&"a".as_bytes()));
+        assert!(WORDS.len() == 370_105);
+    }
+
+    #[test]
+    fn it_loads_trie() {
+        let mut words: Vec<String> = vec![];
+
+        TRIE.dfs(&mut words, &[]);
+        assert!(words.len() == 370_105);
+
+        assert!(TRIE.search("a"));
     }
 }
