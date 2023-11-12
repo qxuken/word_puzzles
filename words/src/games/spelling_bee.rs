@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::trie::Trie;
+use crate::{WORDS_ONE_LETTER_DICT, WORDS_TWO_LETTER_DICT};
 
 const MIN_LENGTH: usize = 3;
 const LETTERS_COUNT: usize = 7;
 const MAX_LENGTH: usize = 10;
 
 pub trait SpellingBee {
-    fn scan(&self, _trie: &Trie) -> Vec<String>;
+    fn scan_dict(&self) -> Vec<String>;
 }
 
 #[derive(Debug)]
@@ -31,30 +31,33 @@ impl SpellingBeeSimpleParams {
             required_letter: bytes[0],
         }
     }
-
-    fn dfs(&self, node: &Trie, words: &mut Vec<String>, path: &[u8]) {
-        if path.len() > MAX_LENGTH {
-            return;
-        }
-        if path.len() > MIN_LENGTH && node.is_word && path.contains(&self.required_letter) {
-            words.push(String::from_utf8_lossy(path).to_string());
-        }
-        for (letter, child) in &node.children {
-            if !self.letters.contains(letter) {
-                continue;
-            }
-            let mut new_path = path.to_vec();
-            new_path.push(*letter);
-            self.dfs(child, words, &new_path);
-        }
-    }
 }
 
 impl SpellingBee for SpellingBeeSimpleParams {
-    fn scan(&self, trie: &Trie) -> Vec<String> {
-        let mut words = vec![];
-        self.dfs(trie, &mut words, &[]);
-        words
+    fn scan_dict(&self) -> Vec<String> {
+        self.letters
+            .iter()
+            .fold(Vec::new(), |mut res: Vec<String>, start_letter| {
+                if let Some(words) = WORDS_ONE_LETTER_DICT.get(start_letter) {
+                    'word_loop: for word in words.iter() {
+                        if word.len() <= MIN_LENGTH || word.len() > MAX_LENGTH {
+                            continue;
+                        }
+                        let mut contains_required = false;
+                        for letter in word.iter() {
+                            if !self.letters.contains(letter) {
+                                continue 'word_loop;
+                            }
+                            contains_required =
+                                contains_required || self.required_letter == *letter;
+                        }
+                        if contains_required {
+                            res.push(String::from_utf8_lossy(word).to_string());
+                        }
+                    }
+                }
+                res
+            })
     }
 }
 
@@ -85,44 +88,64 @@ impl SpellingBeeHintedParams {
             start_letters,
         }
     }
+}
 
-    fn dfs(&self, node: &Trie, words: &mut Vec<String>, path: &[u8]) {
-        if path.len() > MAX_LENGTH {
-            return;
-        }
-        if path.len() > MIN_LENGTH && node.is_word && path.contains(&self.required_letter) {
-            if let Some(lengs) = self.letters_len.get(path.first().unwrap()) {
-                if lengs.contains(&path.len()) {
-                    words.push(String::from_utf8_lossy(path).to_string());
-                }
-            } else {
-                words.push(String::from_utf8_lossy(path).to_string());
-            }
-        }
-        for (letter, child) in &node.children {
-            if !self.letters.contains(letter) {
+impl SpellingBeeHintedParams {
+    fn scan_words(&self, res: &mut Vec<String>, words: &&[&[u8]], words_len: Option<&Vec<usize>>) {
+        'word_loop: for word in words.iter() {
+            if !self.letters_len.is_empty()
+                && words_len.is_some_and(|acceptable_len| !acceptable_len.contains(&word.len()))
+            {
                 continue;
             }
-            let mut new_path = path.to_vec();
-            new_path.push(*letter);
-            self.dfs(child, words, &new_path);
+            if word.len() <= MIN_LENGTH || word.len() > MAX_LENGTH {
+                continue;
+            }
+            let mut contains_required = false;
+            for letter in word.iter() {
+                if !self.letters.contains(letter) {
+                    continue 'word_loop;
+                }
+                contains_required = contains_required || self.required_letter == *letter;
+            }
+            if contains_required {
+                res.push(String::from_utf8_lossy(word).to_string());
+            }
         }
     }
 }
 
 impl SpellingBee for SpellingBeeHintedParams {
-    fn scan(&self, trie: &Trie) -> Vec<String> {
-        let mut words = vec![];
-        if self.start_letters.is_empty() {
-            self.dfs(trie, &mut words, &[]);
+    fn scan_dict(&self) -> Vec<String> {
+        if !self.start_letters.is_empty() {
+            self.start_letters
+                .iter()
+                .fold(Vec::new(), |mut res: Vec<String>, start_letters| {
+                    if let Some(words) = WORDS_TWO_LETTER_DICT.get(start_letters) {
+                        let words_len = start_letters
+                            .first()
+                            .and_then(|start_letter| self.letters_len.get(start_letter));
+                        if !self.letters_len.is_empty() && words_len.is_none() {
+                            return res;
+                        }
+                        self.scan_words(&mut res, words, words_len);
+                    }
+                    res
+                })
         } else {
-            for letters in &self.start_letters {
-                if let Some(node) = trie.follow(letters) {
-                    self.dfs(node, &mut words, letters);
-                }
-            }
+            self.letters
+                .iter()
+                .fold(Vec::new(), |mut res: Vec<String>, start_letter| {
+                    if let Some(words) = WORDS_ONE_LETTER_DICT.get(start_letter) {
+                        let words_len = self.letters_len.get(start_letter);
+                        if !self.letters_len.is_empty() && words_len.is_none() {
+                            return res;
+                        }
+                        self.scan_words(&mut res, words, words_len);
+                    }
+                    res
+                })
         }
-        words
     }
 }
 
@@ -130,67 +153,60 @@ impl SpellingBee for SpellingBeeHintedParams {
 mod tests {
     use super::*;
 
-    fn make_trie() -> Trie {
-        let mut trie = Trie::new();
-        trie.append("ab");
-        trie.append("abc");
-        trie.append("abce");
-        trie.append("acce");
-        trie.append("abcdefg");
-        trie.append("cbcdefg");
-        trie.append("bbcdefg");
-        trie.append("abcdefghijklmnopqrstuvwxyz");
-        trie
-    }
-
     #[test]
     fn it_finds_with_simple() {
-        let trie = make_trie();
-
-        let game = SpellingBeeSimpleParams::new("abcdefg");
-        let mut words = game.scan(&trie);
-        words.sort();
-        assert_eq!(words, vec!["abcdefg", "abce", "acce"]);
+        let game = SpellingBeeSimpleParams::new("zwieslt");
+        let words = game.scan_dict();
+        assert_eq!(words.len(), 51);
     }
 
     #[test]
     fn it_finds_with_hinted_simple() {
-        let trie = make_trie();
-
         let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![]);
-        let mut words = game.scan(&trie);
-        words.sort();
-        assert_eq!(words, vec!["abcdefg", "abce", "acce"]);
+        let words = game.scan_dict();
+        assert_eq!(words.len(), 146);
     }
 
     #[test]
     fn it_finds_with_hinted_with_length() {
-        let trie = make_trie();
-
         let game = SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![]);
-        let mut words = game.scan(&trie);
-        words.sort();
-        assert_eq!(words, vec!["abce", "acce"]);
+        let words = game.scan_dict();
+        assert_eq!(
+            words.len(),
+            words
+                .iter()
+                .filter(|w| w.starts_with('a') && w.len() == 4)
+                .count()
+        );
+        assert_eq!(words.len(), 16);
     }
 
     #[test]
     fn it_finds_with_hinted_with_starting() {
-        let trie = make_trie();
-
         let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![[b'a', b'c']]);
-        let mut words = game.scan(&trie);
-        words.sort();
-        assert_eq!(words, vec!["acce"]);
+        let words = game.scan_dict();
+        assert_eq!(
+            words.len(),
+            words
+                .iter()
+                .filter(|w| w.starts_with('a') || w.starts_with('c'))
+                .count()
+        );
+        assert_eq!(words.len(), 6);
     }
 
     #[test]
     fn it_finds_with_hinted_with_starting_and_length() {
-        let trie = make_trie();
-
         let game =
-            SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![7])], vec![[b'a', b'b']]);
-        let mut words = game.scan(&trie);
-        words.sort();
-        assert_eq!(words, vec!["abcdefg"]);
+            SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![[b'a', b'b']]);
+        let words = game.scan_dict();
+        assert_eq!(
+            words.len(),
+            words
+                .iter()
+                .filter(|w| w.starts_with('a') && w.len() == 4)
+                .count()
+        );
+        assert_eq!(words.len(), 4);
     }
 }

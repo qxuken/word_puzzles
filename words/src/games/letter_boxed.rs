@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use crate::trie::Trie;
 
 #[derive(Debug)]
 pub struct LetterBoxed {
@@ -19,7 +18,7 @@ impl LetterBoxed {
         }
     }
 
-    pub fn search(&self, _trie: &Trie) -> Vec<String> {
+    pub fn search(&self) -> Vec<String> {
         vec![]
     }
 }
@@ -28,26 +27,12 @@ impl LetterBoxed {
 mod tests {
     use super::*;
 
-    fn make_trie() -> Trie {
-        let mut trie = Trie::new();
-        trie.append("ab");
-        trie.append("abc");
-        trie.append("abce");
-        trie.append("acce");
-        trie.append("abcdefg");
-        trie.append("cbcdefg");
-        trie.append("bbcdefg");
-        trie.append("abcdefghijklmnopqrstuvwxyz");
-        trie
-    }
-
     #[test]
     fn it_finds_with_simple() {
-        // let trie = make_trie();
-
-        // let game = LetterBoxed::new("abcdefg");
-        // let mut words = game.scan(&trie);
-        // words.sort();
-        // assert_eq!(words, vec!["abcdefg", "abce", "acce"]);
+        let game = LetterBoxed::new(*b"abc", *b"def", *b"ghi", *b"jkl");
+        let mut words: Vec<String> = game.search();
+        words.sort();
+        let expected: Vec<String> = vec![];
+        assert_eq!(words, expected);
     }
 }
