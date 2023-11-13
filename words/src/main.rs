@@ -1,10 +1,11 @@
+use anyhow::Ok;
 use std::time::Instant;
 use std::{thread, time};
 use words::spelling_bee::{SpellingBee, SpellingBeeHintedParams, SpellingBeeSimpleParams};
 
-fn main() {
-    let game_simple = SpellingBeeSimpleParams::new("abcdefg");
-    let game_hinted = SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![*b"ac"]);
+fn main() -> anyhow::Result<()> {
+    let game_simple = SpellingBeeSimpleParams::new("abcdefg")?;
+    let game_hinted = SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![*b"ac"])?;
 
     let start = Instant::now();
     game_simple.scan_dict();
@@ -84,4 +85,5 @@ fn main() {
     thread::sleep(ten_millis);
 
     assert!(now.elapsed() >= ten_millis);
+    Ok(())
 }

@@ -1,10 +1,10 @@
+use crate::{WORDS_ONE_LETTER_DICT, WORDS_TWO_LETTER_DICT};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
 
-use crate::{WORDS_ONE_LETTER_DICT, WORDS_TWO_LETTER_DICT};
-
 const MIN_LENGTH: usize = 3;
-const LETTERS_COUNT: usize = 7;
 const MAX_LENGTH: usize = 10;
+pub const LETTERS_COUNT: usize = 7;
 
 pub trait SpellingBee {
     fn scan_dict(&self) -> Vec<String>;
@@ -19,17 +19,16 @@ pub struct SpellingBeeSimpleParams {
 impl SpellingBeeSimpleParams {
     /// First letter is the required one.
     /// Count of letters must be equal to `LETTERS_COUNT`.
-    pub fn new(letters: &str) -> Self {
-        let bytes = letters.as_bytes();
-        assert!(
-            bytes.len() == LETTERS_COUNT,
-            "Letters count must be {}",
-            LETTERS_COUNT
-        );
-        Self {
+    pub fn new(letters: &str) -> Result<Self> {
+        let mut bytes: Vec<u8> = letters.as_bytes().into();
+        bytes.dedup();
+        if bytes.len() != LETTERS_COUNT {
+            bail!("letters must have {} unique letters", LETTERS_COUNT);
+        }
+        Ok(Self {
             letters: bytes.to_vec(),
             required_letter: bytes[0],
-        }
+        })
     }
 }
 
@@ -74,19 +73,18 @@ impl SpellingBeeHintedParams {
         letters: &str,
         letters_len: Vec<(u8, Vec<usize>)>,
         start_letters: Vec<[u8; 2]>,
-    ) -> Self {
-        let bytes = letters.as_bytes();
-        assert!(
-            bytes.len() == LETTERS_COUNT,
-            "Letters count must be {}",
-            LETTERS_COUNT
-        );
-        Self {
+    ) -> Result<Self> {
+        let mut bytes: Vec<u8> = letters.as_bytes().into();
+        bytes.dedup();
+        if bytes.len() != LETTERS_COUNT {
+            bail!("letters must have {} unique letters", LETTERS_COUNT);
+        }
+        Ok(Self {
             letters: bytes.to_vec(),
             required_letter: bytes[0],
             letters_len: letters_len.into_iter().collect(),
             start_letters,
-        }
+        })
     }
 }
 
@@ -155,21 +153,21 @@ mod tests {
 
     #[test]
     fn it_finds_with_simple() {
-        let game = SpellingBeeSimpleParams::new("zwieslt");
+        let game = SpellingBeeSimpleParams::new("zwieslt").unwrap();
         let words = game.scan_dict();
         assert_eq!(words.len(), 51);
     }
 
     #[test]
     fn it_finds_with_hinted_simple() {
-        let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![]);
+        let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![]).unwrap();
         let words = game.scan_dict();
         assert_eq!(words.len(), 146);
     }
 
     #[test]
     fn it_finds_with_hinted_with_length() {
-        let game = SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![]);
+        let game = SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![]).unwrap();
         let words = game.scan_dict();
         assert_eq!(
             words.len(),
@@ -183,7 +181,7 @@ mod tests {
 
     #[test]
     fn it_finds_with_hinted_with_starting() {
-        let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![[b'a', b'c']]);
+        let game = SpellingBeeHintedParams::new("abcdefg", vec![], vec![[b'a', b'c']]).unwrap();
         let words = game.scan_dict();
         assert_eq!(
             words.len(),
@@ -198,7 +196,8 @@ mod tests {
     #[test]
     fn it_finds_with_hinted_with_starting_and_length() {
         let game =
-            SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![[b'a', b'b']]);
+            SpellingBeeHintedParams::new("abcdefg", vec![(b'a', vec![4])], vec![[b'a', b'b']])
+                .unwrap();
         let words = game.scan_dict();
         assert_eq!(
             words.len(),

@@ -7,6 +7,7 @@ mod app_state;
 mod assets;
 mod routes;
 mod templates;
+pub mod utils;
 
 #[tokio::main]
 async fn main() {

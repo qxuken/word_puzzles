@@ -7,11 +7,13 @@ edition = "2021"
 
 [dependencies]
 words = { path = "../words" }
+anyhow = { workspace = true }
 dotenv = "0.15.0"
 env_logger = "0.10.1"
 log = "0.4.20"
-anyhow = "1.0.75"
 axum = "0.6.20"
+axum-macros = { version = "0.3.8" }
+axum-htmx = { version = "0.4.0" }
 tower-http = { version = "0.4.4", features = [
   "compression-gzip",
   "compression-deflate",
@@ -28,4 +30,5 @@ rust-embed = { version = "8.0.0", features = [
 ] }
 hex = { version = "0.4.3" }
 chrono = { version = "0.4.31", features = ["serde"] }
-maud = "0.25.0"
+maud = { version = "0.25.0", features = ["axum"] }
+url = "2.4.1"

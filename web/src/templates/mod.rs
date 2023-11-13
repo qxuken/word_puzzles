@@ -1,2 +1,2 @@
-pub mod html_template;
 pub mod layout;
+pub mod spelling_bee;

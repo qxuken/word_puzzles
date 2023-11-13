@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["words", "web"]
+
+[workspace.dependencies]
+anyhow = "1.0.75"
