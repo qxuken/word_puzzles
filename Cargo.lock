@@ -1102,6 +1102,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-server-timing-header"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16e78919e05c9b8e123d435a4ad104b488ad1585631830e413830985c214086e"
+
+[[package]]
 name = "smallvec"
 version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1431,7 +1437,7 @@ checksum = "0d046c5d029ba91a1ed14da14dca44b68bf2f124cfbaf741c54151fdb3e0750b"
 
 [[package]]
 name = "web"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -1446,6 +1452,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
+ "simple-server-timing-header",
  "tokio",
  "tower-http",
  "url",
@@ -1560,7 +1567,7 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "words"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "once_cell",

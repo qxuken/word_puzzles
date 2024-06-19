@@ -1,8 +1,10 @@
+use axum::Router;
 use dotenv::dotenv;
 use env_logger::Env;
 use std::env;
-use tower_http::compression::CompressionLayer;
+use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 
+mod api;
 mod app_state;
 mod assets;
 mod routes;
@@ -35,9 +37,16 @@ async fn main() {
 
     let app_state = app_state::AppState::new(is_dev).shared();
     let compression = CompressionLayer::new();
-    let app = routes::create_router()
+
+    let web_router = routes::create_router()
         .with_state(app_state)
-        .layer(compression);
+        .layer(compression.clone());
+
+    let cors = CorsLayer::permissive();
+    let api_router = api::create_router().layer(cors).layer(compression);
+
+    let app = Router::new().nest("/", web_router).nest("/api", api_router);
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await

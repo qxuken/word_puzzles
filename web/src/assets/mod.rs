@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 mod assets_metadata;
 
-pub use assets_metadata::{AssetsMetadata, AssetsMetadataStore};
+pub use assets_metadata::AssetsMetadataStore;
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]

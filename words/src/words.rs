@@ -1,6 +1,6 @@
 use crate::words_file::FILE;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::Bytes};
 
 pub type WordsDict = Vec<&'static [u8]>;
 pub type WordsOneLetterDict = HashMap<u8, &'static [&'static [u8]]>;
@@ -72,6 +72,29 @@ pub static WORDS_TWO_LETTER_DICT: Lazy<WordsTwoLetterDict> = Lazy::new(|| {
     map.shrink_to_fit();
     map
 });
+
+pub fn search_string<'a>(search: impl Into<Bytes<'a>>) -> Vec<String> {
+    let search_bytes = search.into().collect::<Vec<u8>>();
+    let dict = match search_bytes.len() {
+        0 => WORDS.iter(),
+        1 => WORDS_ONE_LETTER_DICT
+            .get(&search_bytes[0])
+            .map(|s| (*s).iter())
+            .unwrap_or_default(),
+        _ => WORDS_TWO_LETTER_DICT
+            .get(&search_bytes[0..=1])
+            .map(|s| (*s).iter())
+            .unwrap_or_default(),
+    };
+    if search_bytes.len() > 2 {
+        dict.filter(|s| s.starts_with(&search_bytes))
+            .map(|b| String::from_utf8_lossy(b).to_string())
+            .collect()
+    } else {
+        dict.map(|b| String::from_utf8_lossy(b).to_string())
+            .collect()
+    }
+}
 
 #[cfg(test)]
 mod tests {
