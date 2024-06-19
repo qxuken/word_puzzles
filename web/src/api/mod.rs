@@ -17,7 +17,6 @@ struct SearchQuery {
     pub s: Option<String>,
 }
 
-#[axum_macros::debug_handler]
 async fn search_route(Query(query): Query<SearchQuery>) -> Response {
     let mut timer = Timer::new();
     let search: String = query.s.map(|s| s.to_lowercase()).unwrap_or_default();

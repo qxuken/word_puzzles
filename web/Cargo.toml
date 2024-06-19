@@ -1,6 +1,6 @@
 [package]
 name = "web"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,28 +9,28 @@ edition = "2021"
 words = { path = "../words" }
 anyhow = { workspace = true }
 dotenv = "0.15.0"
-env_logger = "0.10.1"
-log = "0.4.20"
-axum = "0.6.20"
-axum-macros = { version = "0.3.8" }
-axum-htmx = { version = "0.4.0" }
-tower-http = { version = "0.4.4", features = [
+env_logger = "0.11.3"
+log = "0.4.21"
+axum = "0.7.5"
+axum-macros = { version = "0.4.1" }
+axum-htmx = { version = "0.5.0" }
+tower-http = { version = "0.5.2", features = [
   "compression-gzip",
   "compression-deflate",
   "compression-br",
   "compression-zstd",
   "cors",
 ] }
-tokio = { version = "1.34.0", features = ["full"] }
-serde = { version = "1.0.192", features = ["derive"] }
-serde_json = "1.0.108"
-rust-embed = { version = "8.0.0", features = [
+tokio = { version = "1.38.0", features = ["full"] }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+rust-embed = { version = "8.4.0", features = [
   "include-exclude",
   "compression",
   "mime-guess",
 ] }
 hex = { version = "0.4.3" }
-chrono = { version = "0.4.31", features = ["serde"] }
-maud = { version = "0.25.0", features = ["axum"] }
-url = "2.4.1"
+chrono = { version = "0.4.38", features = ["serde"] }
+maud = { version = "0.26.0", features = ["axum"] }
+url = "2.5.2"
 simple-server-timing-header = "0.1.1"

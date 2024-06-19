@@ -2,6 +2,7 @@ use axum::Router;
 use dotenv::dotenv;
 use env_logger::Env;
 use std::env;
+use tokio::net::TcpListener;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 
 mod api;
@@ -31,9 +32,9 @@ async fn main() {
         .parse()
         .expect("PORT must be a number");
 
-    let addr = format!("{}:{}", host, port).parse().unwrap();
-
-    log::info!("Starting on: http://{:?}", &addr);
+    let addr = format!("{}:{}", host, port);
+    let listener = TcpListener::bind(&addr).await.unwrap();
+    log::info!("Starting on: http://{}", &addr);
 
     let app_state = app_state::AppState::new(is_dev).shared();
     let compression = CompressionLayer::new();
@@ -47,8 +48,5 @@ async fn main() {
 
     let app = Router::new().nest("/", web_router).nest("/api", api_router);
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
