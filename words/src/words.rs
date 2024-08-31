@@ -1,146 +1,177 @@
-use crate::words_file::FILE;
-use once_cell::sync::Lazy;
-use std::{collections::HashMap, str::Bytes};
+use std::ops::Range;
 
-pub type WordsDict = Vec<&'static [u8]>;
-pub type WordsOneLetterDict = HashMap<u8, &'static [&'static [u8]]>;
-pub type WordsTwoLetterDict = HashMap<[u8; 2], &'static [&'static [u8]]>;
+use crate::words_file::WordsDict;
 
-pub static WORDS: Lazy<WordsDict> = Lazy::new(|| {
-    let mut vec = Vec::with_capacity(370_105);
-    FILE.split(|&byte| byte == b'\n')
-        .filter(|w| !w.is_empty())
-        .for_each(|word| {
-            vec.push(word);
-        });
-    vec.sort();
-    vec
-});
+const DEPTH: usize = 2;
 
-pub static WORDS_ONE_LETTER_DICT: Lazy<WordsOneLetterDict> = Lazy::new(|| {
-    let mut map = HashMap::with_capacity(26);
-    if WORDS.is_empty() {
-        return map;
+const ARRAY_SIZE: usize = {
+    let mut size = 0;
+    let mut i = 1;
+    while i <= DEPTH as u32 {
+        size += 26u32.pow(i) as usize;
+        i += 1;
     }
-    let mut start_index = 0;
-    let mut index = 0;
-    let mut letter = WORDS.first().unwrap().first().unwrap();
-    while let Some(word) = WORDS.get(index) {
-        if let Some(word_letter) = word.first() {
-            if word_letter != letter {
-                map.insert(*letter, &WORDS[start_index..index]);
-                letter = word_letter;
-                start_index = index;
+    size
+};
+
+pub struct WordsShortcuts {
+    size: u32,
+    shortcuts: [i32; 26 * 27],
+}
+
+impl WordsShortcuts {
+    pub fn new(dict: &WordsDict) -> Self {
+        let mut shortcuts = [-1; ARRAY_SIZE];
+        shortcuts[0] = 0;
+
+        let mut latest_first = *dict.get(0).unwrap().first().unwrap();
+        let mut latest_second = None;
+
+        for (i, word) in dict.iter().enumerate() {
+            let first = word.first().unwrap().to_ascii_lowercase();
+            if latest_first != first {
+                shortcuts[Self::calc_one_leter_i(first)] = i as i32;
+                latest_first = first;
+            }
+            let second = word.get(1).map(|c| c.to_ascii_lowercase());
+            match (second, latest_second) {
+                (None, _) => latest_second = None,
+                (Some(curr), Some(latest)) if curr == latest => {}
+                (Some(second), _) => {
+                    shortcuts[Self::calc_two_leter_i(first, second)] = i as i32;
+                    latest_second = Some(second);
+                }
             }
         }
-        index += 1;
-    }
-    map.insert(*letter, &WORDS[start_index..index]);
-    map
-});
 
-pub static WORDS_TWO_LETTER_DICT: Lazy<WordsTwoLetterDict> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    if WORDS.is_empty() {
-        return map;
+        Self {
+            size: dict.size() as u32,
+            shortcuts,
+        }
     }
-    let mut start_index = WORDS.iter().position(|w| w.len() == 2).unwrap();
-    let mut index = start_index;
-    let first_word = WORDS.get(start_index).unwrap();
-    let mut letters = [first_word[0], first_word[1]];
-    while let Some(word) = WORDS.get(index) {
-        if word.len() == 1 {
-            map.insert(letters, &WORDS[start_index..index]);
-            if let Some(i) = WORDS.iter().skip(index + 1).position(|w| w.len() == 2) {
-                let w = WORDS.get(i + index + 1).unwrap();
-                letters = [w[0], w[1]];
-                start_index = i + index + 1;
-                index = i + index + 1;
-                continue;
-            } else {
+}
+
+impl<'a> WordsShortcuts {
+    pub fn search_range(&self, prefix: &'a [u8]) -> Option<Range<usize>> {
+        let mut bytes = prefix.iter();
+
+        let mut right = self.size as usize;
+
+        let Some(first_char) = bytes.next().map(|c| c.to_ascii_lowercase()) else {
+            return Some(0..right);
+        };
+
+        let left = self
+            .shortcuts
+            .get(Self::calc_one_leter_i(first_char))
+            .filter(|&c| c >= &0)
+            .copied()
+            .map(|c| c as usize)?;
+
+        for offset in (first_char + 1)..=122 {
+            if let Some(next_seg) = self
+                .shortcuts
+                .get(Self::calc_one_leter_i(offset))
+                .filter(|&c| c >= &0)
+                .copied()
+                .map(|c| c as usize)
+            {
+                right = right.min(next_seg);
                 break;
             }
         }
-        if !word.starts_with(&letters) {
-            map.insert(letters, &WORDS[start_index..index]);
-            letters = [word[0], word[1]];
-            start_index = index;
-        }
-        index += 1;
-    }
-    map.insert(letters, &WORDS[start_index..index]);
-    map.shrink_to_fit();
-    map
-});
 
-pub fn search_string<'a>(search: impl Into<Bytes<'a>>) -> Vec<String> {
-    let search_bytes = search.into().collect::<Vec<u8>>();
-    let dict = match search_bytes.len() {
-        0 => WORDS.iter(),
-        1 => WORDS_ONE_LETTER_DICT
-            .get(&search_bytes[0])
-            .map(|s| (*s).iter())
-            .unwrap_or_default(),
-        _ => WORDS_TWO_LETTER_DICT
-            .get(&search_bytes[0..=1])
-            .map(|s| (*s).iter())
-            .unwrap_or_default(),
-    };
-    if search_bytes.len() > 2 {
-        dict.filter(|s| s.starts_with(&search_bytes))
-            .map(|b| String::from_utf8_lossy(b).to_string())
-            .collect()
-    } else {
-        dict.map(|b| String::from_utf8_lossy(b).to_string())
-            .collect()
+        let Some(second_char) = bytes.next().map(|c| c.to_ascii_lowercase()) else {
+            return Some(left..right);
+        };
+
+        let left = self
+            .shortcuts
+            .get(Self::calc_two_leter_i(first_char, second_char))
+            .copied()
+            .filter(|c| c > &0)
+            .map(|c| c as usize)?;
+
+        for offset in (second_char + 1)..=122 {
+            if let Some(next_seg) = self
+                .shortcuts
+                .get(Self::calc_two_leter_i(first_char, offset))
+                .filter(|&c| c >= &0)
+                .copied()
+                .map(|c| c as usize)
+            {
+                right = right.min(next_seg);
+                break;
+            }
+        }
+
+        Some(left..right)
+    }
+}
+
+impl WordsShortcuts {
+    fn calc_one_leter_i(one: u8) -> usize {
+        (one as usize - 97) * 26
+    }
+
+    fn calc_two_leter_i(first: u8, second: u8) -> usize {
+        Self::calc_one_leter_i(first) + second as usize - 97 + 1
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use super::*;
+    use test::Bencher;
+
+    static DICT: LazyLock<WordsDict> = LazyLock::new(WordsDict::load);
+
+    static SHORTCUTS: LazyLock<WordsShortcuts> = LazyLock::new(|| WordsShortcuts::new(&DICT));
 
     #[test]
-    fn it_loads_words() {
-        assert_eq!(WORDS.get(0), Some(&"a".as_bytes()));
-        assert!(WORDS.len() == 370_105);
+    fn search_empty_letter() {
+        let range = SHORTCUTS.search_range(b"");
+        assert_eq!(range, Some(0..DICT.size()))
+    }
+
+    #[bench]
+    fn bench_search_empty_letter(b: &mut Bencher) {
+        b.iter(|| SHORTCUTS.search_range(b""));
     }
 
     #[test]
-    fn it_loads_words_one_letter_dict() {
-        let letter = b'z';
-        let words_from_dict: Vec<String> = WORDS_ONE_LETTER_DICT
-            .get(&letter)
-            .unwrap()
-            .iter()
-            .map(|w| String::from_utf8_lossy(w).to_string())
-            .collect();
-        let words_from_words: Vec<String> = WORDS
-            .iter()
-            .filter(|w| w.starts_with(&[letter]))
-            .map(|w| String::from_utf8_lossy(w).to_string())
-            .collect();
-
-        assert_eq!(words_from_dict.len(), words_from_words.len());
-        assert_eq!(words_from_dict, words_from_words);
+    fn search_not_found_letter() {
+        let range = SHORTCUTS.search_range(b"zz");
+        assert_eq!(range, None)
     }
 
     #[test]
-    fn it_loads_words_two_letter_dict() {
-        let letter = b"zy";
-        let words_from_dict: Vec<String> = WORDS_TWO_LETTER_DICT
-            .get(letter)
-            .unwrap()
-            .iter()
-            .map(|w| String::from_utf8_lossy(w).to_string())
-            .collect();
-        let words_from_words: Vec<String> = WORDS
-            .iter()
-            .filter(|w| w.starts_with(letter))
-            .map(|w| String::from_utf8_lossy(w).to_string())
-            .collect();
+    fn search_one_letter() {
+        let range = SHORTCUTS.search_range(b"a");
+        assert_eq!(range, Some(0..25417))
+    }
 
-        assert_eq!(words_from_dict.len(), words_from_words.len());
-        assert_eq!(words_from_dict, words_from_words);
+    #[bench]
+    fn bench_search_one_letter(b: &mut Bencher) {
+        b.iter(|| SHORTCUTS.search_range(b"a"));
+    }
+
+    #[test]
+    fn search_two_letter() {
+        let range = SHORTCUTS.search_range(b"aa");
+        assert_eq!(range, Some(1..29))
+    }
+
+    #[bench]
+    fn bench_search_two_letter(b: &mut Bencher) {
+        b.iter(|| SHORTCUTS.search_range(b"aa"));
+    }
+
+    #[test]
+    fn search_three_letter() {
+        let range = SHORTCUTS.search_range(b"aaa");
+        assert_eq!(range, Some(1..29))
     }
 }

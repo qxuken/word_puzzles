@@ -5,7 +5,7 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
-use simple_server_timing_header::Timer;
+// use simple_server_timing_header::Timer;
 use words::search_string;
 
 pub fn create_router() -> Router {
@@ -14,19 +14,19 @@ pub fn create_router() -> Router {
 
 #[derive(Deserialize)]
 struct SearchQuery {
-    pub s: Option<String>,
+    pub q: Option<String>,
 }
 
 async fn search_route(Query(query): Query<SearchQuery>) -> Response {
-    let mut timer = Timer::new();
-    let search: String = query.s.map(|s| s.to_lowercase()).unwrap_or_default();
-    timer.add("parsed_query");
+    // let mut timer = Timer::new();
+    let search: String = query.q.map(|s| s.to_lowercase()).unwrap_or_default();
+    // timer.add("parsed_query");
     let words = search_string(search.bytes());
-    timer.add("search");
+    // timer.add("search");
 
-    let mut res = Json(words).into_response();
-    timer.add("response_prep");
-    res.headers_mut()
-        .append("server-timing", timer.header_value().parse().unwrap());
-    res
+    // let mut res = Json(words).into_response();
+    // timer.add("response_prep");
+    // res.headers_mut()
+    //     .append("server-timing", timer.header_value().parse().unwrap());
+    Json(words).into_response()
 }

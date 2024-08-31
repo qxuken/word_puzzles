@@ -9,11 +9,11 @@ edition = "2021"
 words = { path = "../words" }
 anyhow = { workspace = true }
 dotenv = "0.15.0"
-env_logger = "0.11.3"
-log = "0.4.21"
+env_logger = "0.11.5"
+log = "0.4.22"
 axum = "0.7.5"
 axum-macros = { version = "0.4.1" }
-axum-htmx = { version = "0.5.0" }
+axum-htmx = { version = "0.6.0" }
 tower-http = { version = "0.5.2", features = [
   "compression-gzip",
   "compression-deflate",
@@ -21,10 +21,10 @@ tower-http = { version = "0.5.2", features = [
   "compression-zstd",
   "cors",
 ] }
-tokio = { version = "1.38.0", features = ["full"] }
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.117"
-rust-embed = { version = "8.4.0", features = [
+tokio = { version = "1.40.0", features = ["full"] }
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.127"
+rust-embed = { version = "8.5.0", features = [
   "include-exclude",
   "compression",
   "mime-guess",
