@@ -43,7 +43,7 @@ impl SpellingBee for SpellingBeeSimpleParams {
                     return res;
                 };
                 'word_loop: for word in dict.iter_range(range) {
-                    if word.len() <= MIN_LENGTH || word.len() > MAX_LENGTH {
+                    if MIN_LENGTH >= word.len() || word.len() > MAX_LENGTH {
                         continue;
                     }
                     let mut contains_required = false;
@@ -125,38 +125,38 @@ impl<'a> SpellingBeeHintedParams {
 impl SpellingBee for SpellingBeeHintedParams {
     fn scan_dict(&self, dict: &WordsDict, shortcuts: &WordsShortcuts) -> Vec<String> {
         if !self.start_letters.is_empty() {
-            self.start_letters
-                .iter()
-                .fold(Vec::new(), |mut res: Vec<String>, start_letters| {
-                    let Some(range) = shortcuts.search_range(start_letters) else {
-                        return res;
-                    };
-                    let words = dict.iter_range(range);
+            return self.start_letters.iter().fold(
+                Vec::new(),
+                |mut res: Vec<String>, start_letters| {
                     let words_len = start_letters
                         .first()
                         .and_then(|start_letter| self.letters_len.get(start_letter));
                     if !self.letters_len.is_empty() && words_len.is_none() {
                         return res;
                     }
-                    self.scan_words(&mut res, words, words_len);
-                    res
-                })
-        } else {
-            self.letters
-                .iter()
-                .fold(Vec::new(), |mut res: Vec<String>, start_letter| {
-                    let Some(range) = shortcuts.search_range(&[*start_letter]) else {
+                    let Some(range) = shortcuts.search_range(start_letters) else {
                         return res;
                     };
                     let words = dict.iter_range(range);
-                    let words_len = self.letters_len.get(start_letter);
-                    if !self.letters_len.is_empty() && words_len.is_none() {
-                        return res;
-                    }
                     self.scan_words(&mut res, words, words_len);
                     res
-                })
+                },
+            );
         }
+        self.letters
+            .iter()
+            .fold(Vec::new(), |mut res: Vec<String>, start_letter| {
+                let words_len = self.letters_len.get(start_letter);
+                if !self.letters_len.is_empty() && words_len.is_none() {
+                    return res;
+                }
+                let Some(range) = shortcuts.search_range(&[*start_letter]) else {
+                    return res;
+                };
+                let words = dict.iter_range(range);
+                self.scan_words(&mut res, words, words_len);
+                res
+            })
     }
 }
 

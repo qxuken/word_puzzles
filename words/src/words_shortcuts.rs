@@ -1,22 +1,22 @@
 use std::ops::Range;
 
-use crate::words_file::WordsDict;
+use crate::words_dict::WordsDict;
 
 const DEPTH: usize = 2;
 
-const ARRAY_SIZE: usize = {
-    let mut size = 0;
-    let mut i = 1;
-    while i <= DEPTH as u32 {
-        size += 26u32.pow(i) as usize;
-        i += 1;
+const fn calc_array_size(n: usize) -> usize {
+    if n == 0 {
+        return 0;
     }
-    size
-};
+    26u32.pow(n as u32) as usize + calc_array_size(n - 1)
+}
 
+const ARRAY_SIZE: usize = calc_array_size(DEPTH);
+
+#[derive(Debug, Clone, Copy)]
 pub struct WordsShortcuts {
     size: u32,
-    shortcuts: [i32; 26 * 27],
+    shortcuts: [i32; ARRAY_SIZE],
 }
 
 impl WordsShortcuts {
@@ -115,7 +115,7 @@ impl WordsShortcuts {
     }
 
     fn calc_two_leter_i(first: u8, second: u8) -> usize {
-        Self::calc_one_leter_i(first) + second as usize - 97 + 1
+        Self::calc_one_leter_i(first) + second as usize - 96
     }
 }
 

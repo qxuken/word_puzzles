@@ -3,6 +3,7 @@ use crate::{
     templates::spelling_bee::{input_hinted, input_simple, solution},
 };
 use axum::{
+    extract::State,
     response::IntoResponse,
     routing::{get, post},
     Form, Router,
@@ -30,12 +31,14 @@ pub struct SimpleSolutionForm {
     pub letters: Option<String>,
 }
 
-#[axum_macros::debug_handler()]
-pub async fn solve_simple_route(Form(data): Form<SimpleSolutionForm>) -> impl IntoResponse {
+pub async fn solve_simple_route(
+    State(app_state): State<SharedAppState>,
+    Form(data): Form<SimpleSolutionForm>,
+) -> impl IntoResponse {
     if let Some(letters) = data.letters {
         match SpellingBeeSimpleParams::new(&letters) {
             Ok(game) => {
-                let words = game.scan_dict();
+                let words = game.scan_dict(&app_state.words_dict, &app_state.words_shortcuts);
                 html!(
                     div.errors id="letters-error" hx-swap-oob="true" {}
                     (solution(words))
@@ -63,7 +66,10 @@ pub struct HintedSolutionForm {
     pub letter_list: Option<String>,
 }
 
-pub async fn solve_hinted_route(Form(data): Form<HintedSolutionForm>) -> impl IntoResponse {
+pub async fn solve_hinted_route(
+    State(app_state): State<SharedAppState>,
+    Form(data): Form<HintedSolutionForm>,
+) -> impl IntoResponse {
     if let Some(letters) = data.letters.map(|l| {
         l.to_lowercase()
             .split_whitespace()
@@ -117,7 +123,7 @@ pub async fn solve_hinted_route(Form(data): Form<HintedSolutionForm>) -> impl In
             .unwrap_or_default();
         match SpellingBeeHintedParams::new(&letters, letters_len, letter_list) {
             Ok(game) => {
-                let words = game.scan_dict();
+                let words = game.scan_dict(&app_state.words_dict, &app_state.words_shortcuts);
                 html!(
                     div.errors id="letters-error" hx-swap-oob="true" {}
                     (solution(words))

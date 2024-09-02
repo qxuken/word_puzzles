@@ -40,11 +40,14 @@ async fn main() {
     let compression = CompressionLayer::new();
 
     let web_router = routes::create_router()
-        .with_state(app_state)
+        .with_state(app_state.clone())
         .layer(compression.clone());
 
     let cors = CorsLayer::permissive();
-    let api_router = api::create_router().layer(cors).layer(compression);
+    let api_router = api::create_router()
+        .with_state(app_state)
+        .layer(cors)
+        .layer(compression);
 
     let app = Router::new().nest("/", web_router).nest("/api", api_router);
 

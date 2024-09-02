@@ -2,8 +2,8 @@
 extern crate test;
 
 pub use games::*;
-pub use words::*;
-pub use words_file::WordsDict;
+pub use words_dict::WordsDict;
+pub use words_shortcuts::*;
 pub mod games;
-pub mod words;
-pub mod words_file;
+pub mod words_dict;
+pub mod words_shortcuts;
